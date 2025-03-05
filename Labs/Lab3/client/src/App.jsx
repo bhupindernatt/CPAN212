@@ -1,234 +1,293 @@
-import "./App.css"
-import { useState } from "react"
+import "./App.css";
+import { useState } from "react";
+
 function App() {
-  const [singleFile, setSingleFile] = useState(null)
-  const [multipleFiles, setMultipleFiles] = useState([])
-  const [displayImage, setDisplayImage] = useState(null)
-  const [message, setMessage] = useState("")
-  const [randomImages, setRandomImages] = useState([])
-  const [dogImage, setDogImage] = useState("")
+  const [singleFile, setSingleFile] = useState(null);
+  const [multipleFiles, setMultipleFiles] = useState([]);
+  const [displayImage, setDisplayImage] = useState(null);
+  const [message, setMessage] = useState("");
+  const [randomImages, setRandomImages] = useState([]);
+  const [dogImage, setDogImage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handlers
   const handleSingleFileChange = (e) => {
     if (e.target.files.length > 0) {
-      setSingleFile(e.target.files[0])
+      setSingleFile(e.target.files[0]);
     }
-  }
+  };
 
-  // fetch functions -> fetch a random single image
+  const handleMultipleFilesChange = (e) => {
+    if (e.target.files.length > 3) {
+      alert("You can only upload up to 3 files.");
+      return;
+    }
+    setMultipleFiles([...e.target.files]);
+  };
+
+  // Fetch a single random image
   const fetchSingleFile = async () => {
+    setIsLoading(true);
+    setMessage("");
     try {
-      const response = await fetch(`http://localhost:8000/fetch/single`)
-
-      const blob = await response.blob() // we made a blob - Binary Large Object
-      // but thats not an image, so we need to make an image element
-
-      // using createObjectURL
-      const imageUrl = URL.createObjectURL(blob)
-      setDisplayImage(imageUrl)
+      const response = await fetch(`http://localhost:8000/fetch/single`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch single image");
+      }
+      const blob = await response.blob();
+      const imageUrl = URL.createObjectURL(blob);
+      setDisplayImage(imageUrl);
+      setMessage("Single image fetched successfully.");
     } catch (error) {
-      console.error("Error fetching single file:", error)
+      console.error("Error fetching single file:", error);
+      setMessage("Failed to fetch single image.");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
-  // fetch functions -> save single
+  // Upload a single file
   const handleSubmitSingleFile = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!singleFile) {
-      setMessage("Please select a file before uploading.")
-      return
+      setMessage("Please select a file before uploading.");
+      return;
     }
 
+    setIsLoading(true);
+    setMessage("");
     try {
-      const formData = new FormData()
-      formData.append("file", singleFile)
+      const formData = new FormData();
+      formData.append("file", singleFile);
 
       const response = await fetch(`http://localhost:8000/save/single`, {
         method: "POST",
         body: formData,
-      })
-
-      const data = await response.json()
+      });
 
       if (!response.ok) {
-        throw new Error(data.error || "Image upload failed")
+        const data = await response.json();
+        throw new Error(data.error || "Image upload failed");
       }
-      setMessage("File uploaded successfully!")
+
+      setMessage("File uploaded successfully!");
+      setSingleFile(null); // Reset file input
     } catch (error) {
-      console.log("Error:", error)
+      console.error("Error:", error);
+      setMessage("Failed to upload file.");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
-  // fetch functions -> save multiple [TODO]
-  const handleMultipleFilesChange = async (e) => {
-    if (e.target.files.length > 3) {
-      alert("You can only upload up to 3 files.")
-      return
-    }
-    setMultipleFiles([...e.target.files])
-  }
-
-  // fetch functions -> fetch multiple [TODO]
+  // Upload multiple files
   const handleUploadMultipleFiles = async (e) => {
-    e.preventDefault()
-    const formData = new FormData()
+    e.preventDefault();
+    if (multipleFiles.length === 0) {
+      setMessage("Please select files before uploading.");
+      return;
+    }
 
-    multipleFiles.forEach((file) => {
-      formData.append("files", file)
-    })
-
+    setIsLoading(true);
+    setMessage("");
     try {
+      const formData = new FormData();
+      multipleFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
       const response = await fetch(`http://localhost:8000/save/multiple`, {
         method: "POST",
         body: formData,
-      })
+      });
 
-      const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || "Image upload failed")
+        const data = await response.json();
+        throw new Error(data.error || "Image upload failed");
       }
-      setMessage("Multiple files uploaded successfully.")
+
+      setMessage("Multiple files uploaded successfully.");
+      setMultipleFiles([]); // Reset file input
     } catch (error) {
-      console.log(`Error Uploading multiple files: ${error}`)
+      console.error("Error uploading multiple files:", error);
+      setMessage("Failed to upload multiple files.");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   // Fetch multiple random images
   const fetchMultipleFiles = async () => {
+    setIsLoading(true);
+    setMessage("");
     try {
-      const response = await fetch(`http://localhost:8000/fetch/multiple`)
-
-      const data = await response.json()
+      const response = await fetch(`http://localhost:8000/fetch/multiple`);
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch images")
+        throw new Error("Failed to fetch images");
       }
-
-      // construct image URL
-      console.log(data)
-      setRandomImages(data.images)
+      const data = await response.json();
+      setRandomImages(data.images);
+      setMessage("Multiple images fetched successfully.");
     } catch (error) {
-      console.error("Error fetching multiple files:", error)
+      console.error("Error fetching multiple files:", error);
+      setMessage("Failed to fetch multiple images.");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
-  // fetch dog images from API
+  // Fetch a random dog image
   const fetchDogImages = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage("");
     try {
-      const response = await fetch(`https://dog.ceo/api/breeds/image/random`)
-
-      const data = await response.json()
-
+      const response = await fetch(`https://dog.ceo/api/breeds/image/random`);
       if (!response.ok) {
-        throw new Error(data.status || " failed to fetch data")
+        throw new Error("Failed to fetch dog image");
       }
-
-      setDogImage(data.message)
-      setMessage("Dog Image fetched successfully.")
+      const data = await response.json();
+      setDogImage(data.message);
+      setMessage("Dog image fetched successfully.");
     } catch (error) {
-      console.log(`Failed to fetch dod images : ${error}`)
+      console.error("Failed to fetch dog images:", error);
+      setMessage("Failed to fetch dog image.");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
-  // fetch functions -> save dog image [TODO]
+  // Upload the fetched dog image
   const uploadDogImage = async (e) => {
-    e.preventDefault()
-
+    e.preventDefault();
     if (!dogImage) {
-      setMessage("Click on fetch dog image first!")
-      return
+      setMessage("Click on 'Fetch Dog Image' first!");
+      return;
     }
 
+    setIsLoading(true);
+    setMessage("");
     try {
-      // Fetching image as a blob (image file)
-      const response = await fetch(dogImage)
-      const blob = await response.blob()
+      const response = await fetch(dogImage);
+      if (!response.ok) {
+        throw new Error("Failed to fetch dog image for upload");
+      }
+      const blob = await response.blob();
 
-      const formData = new FormData()
-      formData.append("file", blob, "dog-image.jpg")
+      const formData = new FormData();
+      formData.append("file", blob, "dog-image.jpg");
 
       const uploadResponse = await fetch(`http://localhost:8000/save/dog`, {
         method: "POST",
         body: formData,
-      })
-
-      const data = await uploadResponse.json()
+      });
 
       if (!uploadResponse.ok) {
-        throw new Error(data.message || "Failed to save image")
+        const data = await uploadResponse.json();
+        throw new Error(data.message || "Failed to save image");
       }
 
-      setMessage("Dog image uploaded successfully!")
+      setMessage("Dog image uploaded successfully!");
     } catch (error) {
-      console.log(`Error uploading dog image: ${error}`)
+      console.error("Error uploading dog image:", error);
+      setMessage("Failed to upload dog image.");
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div>
+    <div className="App">
+      <h1>Image Fetcher and Uploader</h1>
+      {isLoading && <p>Loading...</p>}
       <p style={{ color: "green" }}>{message}</p>
-      <h2>Fetch Single Random Image</h2>
-      <button onClick={fetchSingleFile}>Fetch Single File</button>
-      {displayImage && (
-        <div>
-          <h3>Single File</h3>
-          <img
-            src={displayImage}
-            alt="Display Image"
-            style={{ width: "200px", marginTop: "10px" }}
-          />
+
+      {/* Fetch Single Random Image */}
+      <section>
+        <h2>Fetch Single Random Image</h2>
+        <button onClick={fetchSingleFile} disabled={isLoading}>
+          Fetch Single File
+        </button>
+        {displayImage && (
+          <div>
+            <h3>Single File</h3>
+            <img
+              src={displayImage}
+              alt="Display Image"
+              style={{ width: "200px", marginTop: "10px" }}
+            />
+          </div>
+        )}
+      </section>
+
+      {/* Fetch Multiple Random Images */}
+      <section>
+        <h2>Fetch Multiple Random Images</h2>
+        <button onClick={fetchMultipleFiles} disabled={isLoading}>
+          Fetch Multiple Files
+        </button>
+        <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+          {randomImages.map((img, index) => (
+            <img
+              key={index}
+              src={`http://localhost:8000/${img}`}
+              alt={`Random ${index}`}
+              style={{ width: "150px", height: "150px", objectFit: "cover" }}
+            />
+          ))}
         </div>
-      )}
+      </section>
 
-      <h2>Fetch Multiple Random Images</h2>
-      <button onClick={fetchMultipleFiles}>Fetch Multiple Files</button>
-      <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-        {randomImages.map((img, index) => (
-          <img
-            key={index}
-            src={`http://localhost:8000/${img}`}
-            alt={`Random ${index}`}
-            style={{ width: "150px", height: "150px", objectFit: "cover" }}
-          />
-        ))}
-      </div>
-
-      <form onSubmit={handleSubmitSingleFile}>
+      {/* Upload Single File */}
+      <section>
         <h2>Upload Single File</h2>
-        <input type="file" onChange={handleSingleFileChange} />
-        <button type="submit">Upload Single File</button>
-      </form>
+        <form onSubmit={handleSubmitSingleFile}>
+          <input type="file" onChange={handleSingleFileChange} disabled={isLoading} />
+          <button type="submit" disabled={isLoading}>
+            Upload Single File
+          </button>
+        </form>
+      </section>
 
-      {/* Select multiple files */}
-      <form onSubmit={handleUploadMultipleFiles}>
+      {/* Upload Multiple Files */}
+      <section>
         <h2>Upload Multiple Files</h2>
-        <input type="file" multiple onChange={handleMultipleFilesChange} />
-        <button>Upload Multiple Files</button>
-      </form>
+        <form onSubmit={handleUploadMultipleFiles}>
+          <input
+            type="file"
+            multiple
+            onChange={handleMultipleFilesChange}
+            disabled={isLoading}
+          />
+          <button type="submit" disabled={isLoading}>
+            Upload Multiple Files
+          </button>
+        </form>
+      </section>
 
-      {/* fetch dog image api data */}
-      <form onSubmit={fetchDogImages} style={{ marginTop: "40px" }}>
+      {/* Fetch and Upload Dog Image */}
+      <section>
+        <h2>Fetch and Upload Dog Image</h2>
+        <form onSubmit={fetchDogImages}>
+          <button type="submit" disabled={isLoading}>
+            Fetch Dog Image
+          </button>
+        </form>
         {dogImage && (
           <img
             src={dogImage}
-            alt={`Random Image `}
-            style={{
-              width: "150px",
-              height: "150px",
-              objectFit: "cover",
-            }}
+            alt="Random Dog"
+            style={{ width: "150px", height: "150px", objectFit: "cover", marginTop: "10px" }}
           />
         )}
-        <button type="submit">Fetch Dog Images</button>
-      </form>
-
-      {/* Upload Dog Image */}
-      <form onSubmit={uploadDogImage} style={{ marginTop: "20px" }}>
-        <button type="submit">Upload the Dog Image</button>
-        <p style={{ color: "green" }}>{message}</p>
-      </form>
+        <form onSubmit={uploadDogImage} style={{ marginTop: "10px" }}>
+          <button type="submit" disabled={isLoading}>
+            Upload Dog Image
+          </button>
+        </form>
+      </section>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

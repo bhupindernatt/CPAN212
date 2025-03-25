@@ -15,7 +15,7 @@ app.use(cors()); // To handle CORS issues
 // Connect to MongoDB
 connectDB();
 
-// Routes - only recipe routes remain
+// Routes
 app.use("/recipe", recipeRoutes);
 
 // Health check route
